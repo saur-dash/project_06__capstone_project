@@ -142,7 +142,7 @@ airflow scheduler
 Once Airflow is running, the UI can be accessed at `http://localhost:8080`.
 
 ### Airflow Connections Setup
-This application relies on `Connections` set within the Airflow UI, these will need to be set before starting the ETL process. Click `Admin`, then `Connections` to bring up the `Connections` manager. Next, click `Create` to create a new `Connection`, then enter each of the connections listed below:
+This application relies on **Connections** set within the Airflow UI, these will need to be set before starting the ETL process. Click **Admin**, then **Connections** to bring up the **Connections** manager. Next, click **Create** to create a new **Connection**, then enter each of the connections listed below:
 
 #### AWS Credentials
 - Conn Id: `aws_credentials`
@@ -165,7 +165,7 @@ This application relies on `Connections` set within the Airflow UI, these will n
 - Port: `5439`
 
 ### Airflow Variables Setup
-This application also requires an S3 bucket to write data to, these `Variables` also need to be set before running the ETL process. Click `Admin`, then `Variables` to bring up the `Variables` manager. Click `Create` and enter the `Variables` listed below:
+This application also requires an S3 bucket to write data to, these **Variables** also need to be set before running the ETL process. Click **Admin**, then **Variables** to bring up the **Variables** manager. Click **Create** and enter the **Variables** listed below:
 
 #### s3_data_lake_bucket
 - Key: `s3_data_lake_bucket`
@@ -176,4 +176,4 @@ This application also requires an S3 bucket to write data to, these `Variables` 
 - Value: `<Your S3 bucket region>`
 
 ### Running the ETL Process
-Once the `Connections` and `Variables` have been set up, run the `transactions_etl` DAG by toggling the ON switch in the `DAGs` section of the Airflow UI. The DAG structure and tasks can be viewed by clicking the DAG name hyperlink and navigating to the `Graph View` or `Tree View`.
+Once the **Connections** and **Variables** have been set up, run the **transactions_etl** DAG by toggling the ON switch in the **DAGs** section of the Airflow UI. The DAG structure and tasks can be viewed by clicking the DAG name hyperlink and navigating to the **Graph View** or **Tree View**.
