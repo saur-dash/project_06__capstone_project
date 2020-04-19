@@ -1,0 +1,8 @@
+data
+logs
+utils
+airflow.cfg
+docker-compose.yml
+unittests.cfg
+.vscode
+__pycache__
