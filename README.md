@@ -1,153 +1,24 @@
 - TODO: Add data dictionary
 - TODO: Complete write-up
 - TODO: Add docstrings
-- TODO: Push to remote branch
 
 # Udacity Data Engineering Nanodegree - Capstone Project
-
-## Setup Instructions
-
-### First Time Setup
-
-
-
-```bash
-# Set airflow home directory
-export AIRFLOW_HOME=$(pwd)/airflow
-```
-
-```bash
-# Install required python packages
-pip install -r requirements.txt
-```
-
-```bash
-# initialize the airflow database
-airflow initdb
-```
-
-```bash
-# start the web server on default port
-airflow webserver -p 8080
-```
-
-```bash
-# start the airflow scheduler
-airflow scheduler
-```
-
-
-### Airflow Connections Setup
-#### AWS Credentials
-- Conn Id: `aws_credentials`
-- Conn Type: `Amazon Web Services`
-- Login: `<Your AWS Access key ID>`
-- Password: `<Your AWS Secret access key>`
-
-#### FX Rates API
-- Conn Id: `fx_rates_api`
-- Conn Type: `HTTP`
-- Host: `https://api.ratesapi.io`
-
-#### Redshift Credentials
-- Conn Id: `redshift`
-- Conn Type: `Postgres`
-- Host: `<Your Redshift cluster endpoint>`
-- Schema: `dev`
-- Login: `<Your Redshift username>`
-- Password: `<Your Redshift password>`
-- Port: `5439`
-
-### Airflow Variables Setup
-#### s3_data_lake_bucket
-- Key: `s3_data_lake_bucket`
-- Value: `<Your S3 bucket name>`
-
-#### s3_data_lake_region
-- Key: `s3_data_lake_region`
-- Value: `<Your S3 bucket region>`
 
 ## Project Scope and Data Gathering
 
 In this project I wanted to simulate a real-world situation I often encounter in the workplace, where daily transactions needs to be enriched with data pulled from multiple sources to anable analysis. To simulate this situation, I have used the following datasets:
 
 ### Transactions Table
+- Source: http://archive.ics.uci.edu/ml/datasets/Online+Retail+II
 This is a dataset from the UCI Machine Learning Repository which contains transactions from an online retail business.
 
-- Source: http://archive.ics.uci.edu/ml/datasets/Online+Retail+II
-- Name: `fact_transaction`
-- Dist key: `date_id`
-- Sort key: `date_id`
-
-| Field Name          | Data Type       | Description                                       |
-|---------------------|-----------------|---------------------------------------------------|
-| `id (PK)`           | BIGINT          | Primary key                                       |
-| `country_id (FK)`   | BIGINT          | Foreign key relating to dim_country               |
-| `customer_id`       | VARCHAR         | Unique customer identifier                        |
-| `date_id (FK)`      | BIGINT          | Foreign key relating to dim_date                  |
-| `fx_rate_id (FK)`   | BIGINT          | Foreign key relating to dim_fx_rate               |
-| `invoice_id`        | VARCHAR         | Identifier relating items in an order             |
-| `invoice_date`      | TIMESTAMP       | The creation date of the record                   |
-| `stock_code`        | VARCHAR         | Identifier for items on sale                      |
-| `description`       | VARCHAR         | Item description                                  |
-| `quantity`          | INT             | Number of items ordered                           |
-| `price`             | NUMERIC         | Item price per unit                               |
-| `extracted_at`      | TIMESTAMP       | The timestamp when the record was loaded          |
-
 ### Countries Table
+- Source: https://www.currency-iso.org
 This is a list of the world's countries by name along with their ISO currency code information and will be used as a static mapping table.
 
-- Source: https://www.currency-iso.org
-- Name: `dim_country`
-- Dist style: `ALL`
-- Sort key: `entity`
-
-| Field Name          | Data Type       | Description                                       |
-|---------------------|-----------------|---------------------------------------------------|
-| `id (PK)`           | BIGINT          | Primary key                                       |
-| `entity`            | VARCHAR         | The ISO name of the country                       |
-| `currency`          | VARCHAR         | The ISO name of the currency                      |
-| `alpha_code`        | VARCHAR         | The 3-character alpha currency code (eg: "GBP")   |
-| `numeric_code`      | SMALLINT        | The 3-character numeric currency code (eg: 826)   |
-| `minor_unit`        | SMALLINT        | The currency exponent                             |
-| `extracted_at`      | TIMESTAMP       | The timestamp when the record was loaded          |
-
-### Date Table
-Need some text here to describe the date table...
-
-- Source: http://archive.ics.uci.edu/ml/datasets/Online+Retail+II
-- Name: `dim_date`
-- Dist key: `date_time`
-- Sort key: `date_time`
-
-| Field Name          | Data Type       | Description                                       |
-|---------------------|-----------------|---------------------------------------------------|
-| `id (PK)`           | BIGINT          | Primary key                                       |
-| `date_time`         | TIMESTAMP       | Date in YYYY-MM-DD HH:MM:SS format                |
-| `date`              | DATE            | Date in YYYY-MM-DD format                         |
-| `hour`              | SMALLINT        | Numeric hour of the day                           |
-| `day`               | SMALLINT        | Numeric day of the month                          |
-| `week`              | SMALLINT        | Numeric week of the year                          |
-| `month`             | SMALLINT        | Numeric month of the year                         |
-| `year`              | SMALLINT        | Numeric year in YYYY format                       |
-| `week_day`          | SMALLINT        | Numeric day of the week                           |
-| `extracted_at`      | TIMESTAMP       | The timestamp when the record was loaded          |
-
-### FX Rates Tables
-This free API serves current and historical currency exchange rate data from the European Central Bank. We will keep a record of these rates in the S3 data lake.
-
+### FX Rates Table
 - Source: https://ratesapi.io
-- Name: `dim_fx_rate`
-- Dist key: `date`
-- Sort key: `date`
-
-| Field Name          | Data Type       | Description                                       |
-|---------------------|-----------------|---------------------------------------------------|
-| `id (PK)`           | BIGINT          | Primary key                                       |
-| `date`              | TIMESTAMP       | The date of the currency exchange                 |
-| `hkd`               | VARCHAR         | The decimal currency exchange rate                |
-| `(alpha codes...)`  | VARCHAR         | The decimal currency exchange rate                |
-
+This free API serves current and historical currency exchange rate data from the European Central Bank. We will keep a record of these rates in the S3 data lake.
 
 ## Explore and Assess the Data
 
@@ -228,3 +99,81 @@ Include a description of how you would approach the problem differently under th
 
 ### Example Queries
 What queries will you want to run?
+
+
+## Setup Instructions
+
+### First Time Setup
+This guide assumes that you have Python 3.7 and Airflow installed on a Linux operatoring system. When running this application for the first time, clone this github repo by running:
+
+```bash
+# clone github repo
+git clone https://github.com/saur-dash/project_06__capstone_project.git
+```
+
+Navigate to the cloned repo and run the following commands to configure Airflow and install the required Python packages:
+
+```bash
+# set airflow home directory
+export AIRFLOW_HOME=$(pwd)/airflow
+```
+
+```bash
+# install required python packages
+pip install -r requirements.txt
+```
+
+Enter the following commands to start Airflow:
+
+```bash
+# initialize the airflow database
+airflow initdb
+```
+
+```bash
+# start the web server on default port
+airflow webserver -p 8080
+```
+
+```bash
+# start the airflow scheduler
+airflow scheduler
+```
+Once Airflow is running, the UI can be accessed at `http://localhost:8080`.
+
+### Airflow Connections Setup
+This application relies on `Connections` set within the Airflow UI, these will need to be set before starting the ETL process. Click `Admin`, then `Connections` to bring up the `Connections` manager. Next, click `Create` to create a new `Connection`, then enter each of the connections listed below:
+
+#### AWS Credentials
+- Conn Id: `aws_credentials`
+- Conn Type: `Amazon Web Services`
+- Login: `<Your AWS Access key ID>`
+- Password: `<Your AWS Secret access key>`
+
+#### FX Rates API
+- Conn Id: `fx_rates_api`
+- Conn Type: `HTTP`
+- Host: `https://api.ratesapi.io`
+
+#### Redshift Credentials
+- Conn Id: `redshift`
+- Conn Type: `Postgres`
+- Host: `<Your Redshift cluster endpoint>`
+- Schema: `dev`
+- Login: `<Your Redshift username>`
+- Password: `<Your Redshift password>`
+- Port: `5439`
+
+### Airflow Variables Setup
+This application also requires an S3 bucket to write data to, these `Variables` also need to be set before running the ETL process. Click `Admin`, then `Variables` to bring up the `Variables` manager. Click `Create` and enter the `Variables` listed below:
+
+#### s3_data_lake_bucket
+- Key: `s3_data_lake_bucket`
+- Value: `<Your S3 bucket name>`
+
+#### s3_data_lake_region
+- Key: `s3_data_lake_region`
+- Value: `<Your S3 bucket region>`
+
+### Running the ETL Process
+Once the `Connections` and `Variables` have been set up, run the `transactions_etl` DAG by toggling the ON switch in the `DAGs` section of the Airflow UI. The DAG structure and tasks can be viewed by clicking the DAG name hyperlink and navigating to the `Graph View` or `Tree View`.
