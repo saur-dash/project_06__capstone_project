@@ -1,8 +1,6 @@
 # Data Dictionary
 
 ### Transactions Table
-This is a dataset from the UCI Machine Learning Repository which contains transactions from an online retail business.
-
 - Source: http://archive.ics.uci.edu/ml/datasets/Online+Retail+II
 - Name: `fact_transaction`
 - Dist key: `date_id`
@@ -24,8 +22,6 @@ This is a dataset from the UCI Machine Learning Repository which contains transa
 | `extracted_at`      | TIMESTAMP       | The timestamp when the record was loaded          |
 
 ### Countries Table
-This is a list of the world's countries by name along with their ISO currency code information and will be used as a static mapping table.
-
 - Source: https://www.currency-iso.org
 - Name: `dim_country`
 - Dist style: `ALL`
@@ -42,8 +38,6 @@ This is a list of the world's countries by name along with their ISO currency co
 | `extracted_at`      | TIMESTAMP       | The timestamp when the record was loaded          |
 
 ### Date Table
-Need some text here to describe the date table...
-
 - Source: http://archive.ics.uci.edu/ml/datasets/Online+Retail+II
 - Name: `dim_date`
 - Dist key: `date_time`
@@ -63,8 +57,6 @@ Need some text here to describe the date table...
 | `extracted_at`      | TIMESTAMP       | The timestamp when the record was loaded          |
 
 ### FX Rates Table
-This free API serves current and historical currency exchange rate data from the European Central Bank. We will keep a record of these rates in the S3 data lake.
-
 - Source: https://ratesapi.io
 - Name: `dim_fx_rate`
 - Dist key: `date`
@@ -73,40 +65,9 @@ This free API serves current and historical currency exchange rate data from the
 | Field Name          | Data Type       | Description                                       |
 |---------------------|-----------------|---------------------------------------------------|
 | `id (PK)`           | BIGINT          | Primary key                                       |
-| `date`              | TIMESTAMP       | The date of the currency exchange                 |
-| `hkd`               | VARCHAR         | The decimal currency exchange rate                |
-| `(alpha codes...)`  | VARCHAR         | The decimal currency exchange rate                |
-| `hkd`               | NUMERIC         | The decimal currency exchange rate                |
-| `idr`               | NUMERIC         | The decimal currency exchange rate                |
-| `php`               | NUMERIC         | The decimal currency exchange rate                |
-| `lvl`               | NUMERIC         | The decimal currency exchange rate                |
-| `inr`               | NUMERIC         | The decimal currency exchange rate                |
-| `chf`               | NUMERIC         | The decimal currency exchange rate                |
-| `mxn`               | NUMERIC         | The decimal currency exchange rate                |
-| `sgd`               | NUMERIC         | The decimal currency exchange rate                |
-| `czk`               | NUMERIC         | The decimal currency exchange rate                |
-| `thb`               | NUMERIC         | The decimal currency exchange rate                |
-| `bgn`               | NUMERIC         | The decimal currency exchange rate                |
-| `eur`               | NUMERIC         | The decimal currency exchange rate                |
-| `myr`               | NUMERIC         | The decimal currency exchange rate                |
-| `nok`               | NUMERIC         | The decimal currency exchange rate                |
-| `cny`               | NUMERIC         | The decimal currency exchange rate                |
-| `hrk`               | NUMERIC         | The decimal currency exchange rate                |
-| `pln`               | NUMERIC         | The decimal currency exchange rate                |
-| `ltl`               | NUMERIC         | The decimal currency exchange rate                |
-| `try`               | NUMERIC         | The decimal currency exchange rate                |
-| `zar`               | NUMERIC         | The decimal currency exchange rate                |
-| `cad`               | NUMERIC         | The decimal currency exchange rate                |
-| `brl`               | NUMERIC         | The decimal currency exchange rate                |
-| `ron`               | NUMERIC         | The decimal currency exchange rate                |
-| `dkk`               | NUMERIC         | The decimal currency exchange rate                |
-| `nzd`               | NUMERIC         | The decimal currency exchange rate                |
-| `eek`               | NUMERIC         | The decimal currency exchange rate                |
-| `jpy`               | NUMERIC         | The decimal currency exchange rate                |
-| `rub`               | NUMERIC         | The decimal currency exchange rate                |
-| `krw`               | NUMERIC         | The decimal currency exchange rate                |
-| `usd`               | NUMERIC         | The decimal currency exchange rate                |
-| `aud`               | NUMERIC         | The decimal currency exchange rate                |
-| `huf`               | NUMERIC         | The decimal currency exchange rate                |
-| `sek`               | NUMERIC         | The decimal currency exchange rate                |
+| `exchange`          | TIMESTAMP       | The exchange currency                             |
+| `base`              | NUMERIC         | The base currency                                 |
+| `rates`             | NUMERIC         | The decimal currency exchange rate                |
+| `date`              | NUMERIC         | The date of the currency exchange                 |
+| `file_date`         | NUMERIC         | The The date passed to the fx rate API            |
 | `extracted_at`      | TIMESTAMP       | The timestamp when the record was loaded          |
