@@ -1,67 +1,69 @@
-- TODO: Add data dictionary
 - TODO: Complete write-up
-- TODO: Add docstrings
 
 # Udacity Data Engineering Nanodegree - Capstone Project
 
 ## Project Scope and Data Gathering
 
-In this project I wanted to simulate a real-world situation I often encounter in the workplace, where daily transactions needs to be enriched with data pulled from multiple sources to anable analysis. To simulate this situation, I have used the following datasets:
+In this project I wanted to simulate a situation I've encountered in the workplace, where daily transaction data needs to be enriched with additional information to anable analysis. To simulate this, I have used the datasets described below:
 
-### Transactions Table
+### Transaction Table
 - Source: http://archive.ics.uci.edu/ml/datasets/Online+Retail+II
-This is a dataset from the UCI Machine Learning Repository which contains transactions from an online retail business.
 
-### Countries Table
+This is a dataset from the UCI Machine Learning Repository which contains orders from an online retail business. The `[country]` field of this table states the destination country name of the order, with the help of an additional **country** mapping table, I am going to lookup the local currency for each country.
+
+### Country Table
 - Source: https://www.currency-iso.org
-This is a list of the world's countries by name along with their ISO currency code information and will be used as a static mapping table.
 
-### FX Rates Table
+This is a list of the world's countries alongside their ISO currency information. I am going to use this table to lookup the `[alpha_code]` code for each of the records in the **Transaction** table by matching the country names.
+
+### FX Rate Table
 - Source: https://ratesapi.io
-This free API serves current and historical currency exchange rate data from the European Central Bank. We will keep a record of these rates in the S3 data lake.
+
+This free API serves current and historical currency exchange rate data from the European Central Bank. Using the `[invoice_date]` in the **Transaction** table and the `[alpha_code]` gained by cross-checking the `[country]` field, I am going to enrich the **Transactions** with currency exchange rate data retrieved from this API.
 
 ## Explore and Assess the Data
 
 ### No Currency Fields in Transactions table
-To apply the correct exchange rate to a record in the Transactions table, we need 3 pieces of information:
+To apply the correct exchange rate to a record in the Transactions table, I need 3 pieces of information:
+- Base currency
+- Exchange currency
+- Exchange date
 
 #### Base Currency
-From the information provided with the dataset, we know the online retailer only processes transactions in GBP currency, so we don't need to worry about deriving a base currency.
+From the information provided with the **Transaction** dataset, we know the online retailer only processes orders in GBP currency, so we don't need to worry about deriving a base currency.
 
 #### Exchange Currency
-The exchange currency is a little trickier, this will need to be derived from the [country] column which states the country the goods were sold to. Luckily, the country names present in the transactions table can easily be mapped to existing ISO country code tables freely found online, so from the country name I can derive the currency.
+The exchange currency is a little trickier, this will need to be derived from the `[country]` column which states the country the goods were sold to. Luckily, the country names present in the **Transaction** table can be mapped to existing ISO country and currency tables found online, so by matching the `[country]` names in the **Transaction** table I can retrieve the `[alpha_code]` from the **Country** table,
 
-Upon inspecting the ISO country code table I found that all of the country names in the [entity] column are UPPERCASE, while those in the transactions table are not. This is easily solved in the INSERT statement which loads the transaction records, I'll convert the country names to UPPERCASE at this point to match the country code table. 
+Upon inspecting the ISO country code table I found that all of the country names in the **Country** table `[entity]` column are UPPERCASE, whereas the ones in the `[country]` field of the **Transaction** table are not. This is easily solved in the SQL statement which loads the transaction records, I'll convert the **Transaction** `[country]` column to UPPERCASE to match the **Country** `[entity]` column. 
 
 #### Exchange Date
-I initially thought this would be a simple matter of relating the exchange rate information to the transactions on [invoice_date] to retrieve the currect exchange rate. However, I soon discovered that exchange rate data is not available on weekends, if you call the API with a weekend date, it will return the exchange rate for the previous Friday.
 
-I played around with the idea of using logic in the SQL to add an [fx_date] column which returns the previous Friday if the [invoice_date] falls on a weekend. This works, but introuduces issues with task dependendies; the previous Friday's run will have to complete before the weekend dates can be run.
-
-To eliminate the dependency problem I decided to exclude the date from table join. The reasoning behind this is that each ETL operation is self-contained and isolated to a single invoice date, the exchange rate API will return the appropriate exchange rate for that date. Now that I don't need to rely on anything outside of the current run of the ETL process, I can have many operations running in parallel.
 
 ### Non-null values in "empty" cells
-The transactions table is not clean and there are whitespace and other such non-null values in cells which should be null. To get around this, I will use the COPY OPTIONS parameter when copying the data from S3 to Redshift. This parameter lets you specify how non-null values will be handled, in this case they will be replaced will NULL when the data is copied.
+The transactions table is not entirely clean and there are whitespace and other such non-null values in cells which should be null. To fix this, I will use the COPY OPTIONS parameter when copying the data from S3 to Redshift; this parameter lets you specify how non-null values will be handled, in this case they will be replaced with NULL.
 
 ### Long Decimal Values
-The exchange rates returned by the API are long decimal numbers, I intially encountered a problem where these values were being truncated to fewer decimal places. To remedy this, I've declared the scale and precision of these NUMERIC columns in the table definition.
+The exchange rates returned by the FX Rate API are long decimal numbers. To ensure these values are not truncated, I've declared the scale and precision of these NUMERIC columns in the table definition.
 
 
 ## Step 3: Define the Data Model
+![Data Model](images/data_model.png)
 Map out the conceptual data model and explain why you chose that model
 List the steps necessary to pipeline the data into the chosen data model
 Include the data dictionary you did in project_03
 
 
 ## Run ETL to Model the Data
+![Data Model](images/data_pipeline.png)
 The ETL process has been designed to be modular and self-contained, ie a run on a particular date does not rely on the state of a run on another date. This is to ensure that I can have many ETL operations running in parallel, adding more workers as the size and complexity of my data grows.
 
 Each `run` executes over a single date and is comprised of the following operations:
 
 ### Extract
-1. The ratesapi.io API is called to retrieve the currency exchange rate data for the date of operation.
+1. The ratesapi.io API is called to retrieve the currency exchange rate data for the run date.
 2. The currency exchange rate data is saved to the S3 data lake.
-3. The country, currency and transaction data for the date of operation is copied from S3 to staging tables in Redshift.
+3. The country, currency and transaction data for the run date is copied from S3 to staging tables in Redshift.
 
 ### Ingest
 The staged data is modelled into dimension and fact tables and loaded from the transient staging tables to permanent ones.
@@ -176,4 +178,4 @@ This application also requires an S3 bucket to write data to, these **Variables*
 - Value: `<Your S3 bucket region>`
 
 ### Running the ETL Process
-Once the **Connections** and **Variables** have been set up, run the **transactions_etl** DAG by toggling the ON switch in the **DAGs** section of the Airflow UI. The DAG structure and tasks can be viewed by clicking the DAG name hyperlink and navigating to the **Graph View** or **Tree View**.
+Once the **Connections** and **Variables** have been set up, run the `transactions_etl` DAG by toggling the ON switch in the **DAGs** section of the Airflow UI. The DAG structure and tasks can be viewed by clicking the DAG name hyperlink and navigating to the **Graph View** or **Tree View**.
