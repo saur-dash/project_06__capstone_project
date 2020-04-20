@@ -1,4 +1,5 @@
 data
+forex_test*
 logs
 utils
 airflow.cfg
