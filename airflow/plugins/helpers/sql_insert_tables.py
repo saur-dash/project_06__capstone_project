@@ -52,82 +52,18 @@ class InsertSQL:
     insert_dim_fx_rate = (
         """
         INSERT INTO public.dim_fx_rate (
-            id,
-            date,
+            exchange,
             base,
-            gbp,
-            hkd,
-            idr,
-            php,
-            lvl,
-            inr,
-            chf,
-            mxn,
-            sgd,
-            czk,
-            thb,
-            bgn,
-            eur,
-            myr,
-            nok,
-            cny,
-            hrk,
-            pln,
-            ltl,
-            try,
-            zar,
-            cad,
-            brl,
-            ron,
-            dkk,
-            nzd,
-            eek,
-            jpy,
-            rub,
-            krw,
-            usd,
-            aud,
-            huf,
-            sek
+            rates,
+            date,
+            file_date
         )
         SELECT DISTINCT
-            EXTRACT(epoch FROM TO_TIMESTAMP(date, 'YYYY-MM-DD')) :: BIGINT,
+            exchange,
+            base,
+            rates :: NUMERIC(18, 10),
             TO_TIMESTAMP(date, 'YYYY-MM-DD') :: TIMESTAMP,
-            base :: VARCHAR,
-            gbp :: NUMERIC(18, 10),
-            hkd :: NUMERIC(18, 10),
-            idr :: NUMERIC(18, 10),
-            php :: NUMERIC(18, 10),
-            lvl :: NUMERIC(18, 10),
-            inr :: NUMERIC(18, 10),
-            chf :: NUMERIC(18, 10),
-            mxn :: NUMERIC(18, 10),
-            sgd :: NUMERIC(18, 10),
-            czk :: NUMERIC(18, 10),
-            thb :: NUMERIC(18, 10),
-            bgn :: NUMERIC(18, 10),
-            eur :: NUMERIC(18, 10),
-            myr :: NUMERIC(18, 10),
-            nok :: NUMERIC(18, 10),
-            cny :: NUMERIC(18, 10),
-            hrk :: NUMERIC(18, 10),
-            pln :: NUMERIC(18, 10),
-            ltl :: NUMERIC(18, 10),
-            try :: NUMERIC(18, 10),
-            zar :: NUMERIC(18, 10),
-            cad :: NUMERIC(18, 10),
-            brl :: NUMERIC(18, 10),
-            ron :: NUMERIC(18, 10),
-            dkk :: NUMERIC(18, 10),
-            nzd :: NUMERIC(18, 10),
-            eek :: NUMERIC(18, 10),
-            jpy :: NUMERIC(18, 10),
-            rub :: NUMERIC(18, 10),
-            krw :: NUMERIC(18, 10),
-            usd :: NUMERIC(18, 10),
-            aud :: NUMERIC(18, 10),
-            huf :: NUMERIC(18, 10),
-            sek :: NUMERIC(18, 10)
+            TO_TIMESTAMP(file_date, 'YYYY-MM-DD') :: TIMESTAMP
         FROM public.staging_fx_rate__{tstamp};
         """
     )
@@ -139,15 +75,16 @@ class InsertSQL:
         CREATE TEMP TABLE t1 AS
         SELECT DISTINCT
             id,
-            entity
+            entity,
+            alpha_code
         FROM public.dim_country t1;
 
         CREATE TEMP TABLE t2 AS
         SELECT DISTINCT
-            EXTRACT(
-                epoch FROM TO_TIMESTAMP(date, 'YYYY-MM-DD')) :: BIGINT AS id,
-            '{tstamp}' AS tstamp
-        FROM public.staging_fx_rate__{tstamp} t2;
+            id,
+            exchange,
+            file_date
+        FROM public.dim_fx_rate t2;
 
         CREATE TEMP TABLE t3 AS
         SELECT
@@ -177,7 +114,7 @@ class InsertSQL:
         )
         SELECT
             t1.id :: BIGINT,
-            t3.customer_id ::VARCHAR,
+            t3.customer_id :: NUMERIC :: BIGINT,
             EXTRACT(epoch FROM t3.invoice_date :: TIMESTAMP) :: BIGINT,
             t2.id :: BIGINT,
             t3.invoice_id :: VARCHAR,
@@ -190,7 +127,8 @@ class InsertSQL:
         LEFT JOIN t1
                ON t1.entity = UPPER(t3.country)
         LEFT JOIN t2
-               ON t2.tstamp = t3.tstamp;
+               ON t2.exchange = t1.alpha_code
+               AND t2.file_date :: DATE = t3.invoice_date :: DATE;
 
         DROP TABLE IF EXISTS t1;
         DROP TABLE IF EXISTS t2;

@@ -38,7 +38,7 @@ with DAG(dag_name,
          default_args=default_args,
          description='Extract data from S3 and load to Redshift with Airflow',
          schedule_interval='@daily',
-         max_active_runs=1,
+         max_active_runs=3,
          ) as dag:
 
     start_operator = DummyOperator(task_id='execution_started')
@@ -62,6 +62,7 @@ with DAG(dag_name,
         data=f"{{{{ {xcom_template.format(id='get_fx_rates')} }}}}",
         s3_bucket=s3_data_lake_bucket,
         s3_key='fx_rates/{{ execution_date.year }}/{{ ds }}__fx_rates.csv',
+        file_date='{{ ds }}',
     )
 
     extract_country_data = ExtractOperator(
