@@ -1,4 +1,4 @@
-- TODO: Complete write-up
+- # TODO: Scaling scenarios
 
 # Udacity Data Engineering Nanodegree - Capstone Project
 
@@ -178,6 +178,8 @@ This application relies on **Connections** set within the Airflow UI, these will
 - Password: `<Your Redshift password>`
 - Port: `5439`
 
+**Important!** Your Redshift cluster endpoint should not include a port and schema, for example: `test-cluster.xxxxxxxxxaxx.us-west-2.redshift.amazonaws.com`.
+
 ### Airflow Variables Setup
 This application also requires an S3 bucket to write data to, these **Variables** also need to be set before running the ETL process. Click **Admin**, then **Variables** to bring up the **Variables** manager. Click **Create** and enter the **Variables** listed below:
 
@@ -190,4 +192,39 @@ This application also requires an S3 bucket to write data to, these **Variables*
 - Value: `<Your S3 bucket region>`
 
 ### Running the ETL Process
-Once the **Connections** and **Variables** have been set up, run the `transactions_etl` DAG by toggling the ON switch in the **DAGs** section of the Airflow UI. The DAG structure and tasks can be viewed by clicking the DAG name hyperlink and navigating to the **Graph View** or **Tree View**.
+
+- **Important!** The ETL process requires a schema named `public` in your Redshift cluster, please check that the schema exists before proceeding.
+- **Important!** Your AWS role must allow read and write access to the S3 bucket you have specified, please check your permissions before proceeding.
+
+Once the **Connections** and **Variables** have been set up, run the `transactions_etl` DAG by toggling the ON switch in the **DAGs** section of the Airflow UI. The ETL operation will proceed sequentially, a day at a time, from `01/12/2009` to `09/12/2011` with a single active run.
+
+If you would like to process multiple dates in parallel, confirm the first run has completed successfully, then increase the number of active workers in the `etl_transactions.py` DAG. I have successfully tested the process end-to-end on my local machine with 3 active workers.
+
+
+## Example SQL Query
+
+### Multi-Currency Transaction Report
+```sql
+SELECT t.id                                       AS transaction_id,
+	   d.date_time :: DATE                        AS invoice_date,
+	   t.stock_code                               AS stock_code,
+       t.description                              AS description,
+       'GBP'                                      AS base_currency,
+       f.exchange                                 AS local_currency,
+       f.rates                                    AS local_exchange_rate,
+       t.quantity                                 AS unit_quantity,
+       t.price                                    AS base_unit_price,
+       ROUND(t.price * f.rates, 2)                AS local_unit_price,
+       t.price * t.quantity                       AS total_base_price,
+       ROUND((t.price * f.rates) * t.quantity, 2) AS total_local_price
+FROM public.fact_transaction t
+JOIN dim_date d
+  ON d.id = t.date_id
+JOIN dim_fx_rate f
+  ON f.id = t.fx_rate_id
+WHERE invoice_date >= '2010-01-01'
+  AND invoice_date < '2010-02-01';
+```
+
+### Report Output
+![Data Model](images/sql_result.png)
