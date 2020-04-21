@@ -11,7 +11,7 @@ class CreateSQL:
             minor_unit SMALLINT ENCODE AZ64,
             extracted_at TIMESTAMP DEFAULT GETDATE() ENCODE AZ64
         ) DISTSTYLE ALL
-        SORTKEY (entity);
+        SORTKEY (id);
         """
     )
 
@@ -29,7 +29,7 @@ class CreateSQL:
             week_day SMALLINT ENCODE ZSTD,
             extracted_at TIMESTAMP DEFAULT GETDATE() ENCODE AZ64
         ) DISTSTYLE KEY
-        SORTKEY (date_time);
+        SORTKEY (id);
         """
     )
 
