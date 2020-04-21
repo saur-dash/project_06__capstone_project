@@ -38,7 +38,7 @@ with DAG(dag_name,
          default_args=default_args,
          description='Extract data from S3 and load to Redshift with Airflow',
          schedule_interval='@daily',
-         max_active_runs=3,
+         max_active_runs=1,
          ) as dag:
 
     start_operator = DummyOperator(task_id='execution_started')
