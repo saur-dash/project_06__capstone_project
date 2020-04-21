@@ -1,5 +1,7 @@
 # Data Dictionary
 
+## Schema: `public`
+
 ### Transactions Table
 - Source: http://archive.ics.uci.edu/ml/datasets/Online+Retail+II
 - Name: `fact_transaction`
