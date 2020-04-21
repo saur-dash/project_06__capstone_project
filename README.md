@@ -4,22 +4,24 @@
 
 ## Project Scope and Data Gathering
 
-In this project I wanted to simulate a situation I've encountered in the workplace, where daily transaction data needs to be enriched with additional information to anable analysis. To simulate this, I have used the datasets described below:
+In this project I wanted to simulate a situation I've encountered in the workplace, where daily transactions need to be enriched with data from other sources to enable analysis. To simulate this, I'm going to create a data pipeline which extracts daily transactions data, enriches it with currency exchange information and loads the validated result to a data warehouse.
 
 ### Transaction Table
 - Source: http://archive.ics.uci.edu/ml/datasets/Online+Retail+II
 
-This is a dataset from the UCI Machine Learning Repository which contains orders from an online retail business. The `[country]` field of this table states the destination country name of the order, with the help of an additional **country** mapping table, I am going to lookup the local currency for each country.
+This is a dataset from the UCI Machine Learning Repository which contains just over a million transactions from an online business. Transaction lines are timestamped and grouped by `[invoice_id]`, each invoice can consist of one or more records containing product information, quantity and price.
+
+The `[country]` field of the **Transaction** table shows the name of the destination country of the invoice, with the help of an additional **Country** mapping table, I will lookup the local currency for each country.
 
 ### Country Table
 - Source: https://www.currency-iso.org
 
-This is a list of the world's countries alongside their ISO currency information. I am going to use this table to lookup the `[alpha_code]` code for each of the records in the **Transaction** table by matching the country names.
+This is a list of the world's countries and associated ISO currency information. I am going to use this table to lookup the `[alpha_code]` code for each of the records in the **Transaction** table by matching the country names.
 
 ### FX Rate Table
 - Source: https://ratesapi.io
 
-This free API serves current and historical currency exchange rate data from the European Central Bank. Using the `[invoice_date]` in the **Transaction** table and the `[alpha_code]` gained by cross-checking the `[country]` field, I am going to enrich the **Transactions** with currency exchange rate data retrieved from this API.
+This free API serves current and historical currency exchange rate data from the European Central Bank. Using the `[invoice_date]` in the **Transaction** table and the `[alpha_code]` gained by cross-checking the `[country]` field, I will enrich the **Transactions** with currency exchange rate data retrieved from this API.
 
 ## Explore and Assess the Data
 
@@ -30,18 +32,18 @@ To apply the correct exchange rate to a record in the Transactions table, I need
 - Exchange date
 
 #### Base Currency
-From the information provided with the **Transaction** dataset, we know the online retailer only processes orders in GBP currency, so we don't need to worry about deriving a base currency.
+From the information provided with the **Transaction** dataset, I know the online retailer only processes orders in GBP currency, so I don't need to worry about deriving a base currency.
 
 #### Exchange Currency
-The exchange currency is a little trickier, this will need to be derived from the `[country]` column which states the country the goods were sold to. Luckily, the country names present in the **Transaction** table can be mapped to existing ISO country and currency tables found online, so by matching the `[country]` names in the **Transaction** table I can retrieve the `[alpha_code]` from the **Country** table,
+The exchange currency will need to be derived from the `[country]` column which states the country the goods were sold to. The country names present in the **Transaction** table can be mapped to existing ISO country and currency tables found online, by matching the `[country]` names in the **Transaction** with the `[entity]` names in the **COuntry** table, I can retrieve the `[alpha_code]`
 
-Upon inspecting the ISO country code table I found that all of the country names in the **Country** table `[entity]` column are UPPERCASE, whereas the ones in the `[country]` field of the **Transaction** table are not. This is easily solved in the SQL statement which loads the transaction records, I'll convert the **Transaction** `[country]` column to UPPERCASE to match the **Country** `[entity]` column. 
+A minor issue is that all of the country names in the **Country** table `[entity]` column are UPPERCASE, while the ones in the `[country]` field of the **Transaction** table are not. This is easily solved in the SQL statement which loads the transaction records, I'll convert the **Transaction** `[country]` column to UPPERCASE to match the **Country** `[entity]` column when performing the lookup. 
 
 #### Exchange Date
-
+While the **Transaction** table contains records for almost all dates, I was not aware that exchange rates are not available on weekends. If you call the exchange rate API on a weekend, it will return the rates from the preceding Friday (which are dated as such). To avoid mismatching dates, I have added an additional column `[file_date]` to the **FX Rate** table which contains the date the exchange rate API was called with. With this column in place, I can reliably join the **Transactions** to the **FX Rate** table on `[invoice_date]` = `[file_date]` 
 
 ### Non-null values in "empty" cells
-The transactions table is not entirely clean and there are whitespace and other such non-null values in cells which should be null. To fix this, I will use the COPY OPTIONS parameter when copying the data from S3 to Redshift; this parameter lets you specify how non-null values will be handled, in this case they will be replaced with NULL.
+The transactions table is not entirely clean and there are whitespace and other such non-null values in cells which should be null. I will use the COPY OPTIONS parameter when copying the data from S3 to Redshift; this parameter lets you specify how non-null values will be handled, in this case I will replace them with NULL.
 
 ### Long Decimal Values
 The exchange rates returned by the FX Rate API are long decimal numbers. To ensure these values are not truncated, I've declared the scale and precision of these NUMERIC columns in the table definition.
@@ -49,30 +51,40 @@ The exchange rates returned by the FX Rate API are long decimal numbers. To ensu
 
 ## Step 3: Define the Data Model
 ![Data Model](images/data_model.png)
-Map out the conceptual data model and explain why you chose that model
-List the steps necessary to pipeline the data into the chosen data model
-Include the data dictionary you did in project_03
 
+From an analysis standpoint, this data model has been designed primarily to enable analysis of revenue over time in multiple currencies. In terms of the data pipeline, the model has been designed to be atomic, each `run` in the pipeline processes an isolated slice of data so that many runs can be performed in parallel.
+
+### dim_country
+The `dim_country` table is a static mapping table used to lookup the currency for each country, it has been retained as part of the model due to the useful currency information fields it contains. For example, the `[minor_unit]` field can be used to drive calculations and the `[numeric_code]` could be useful to satisfy some reporting requirements.
+
+### dim_date
+The `dim_date` table is created by extracting a unique set of timestamps from the **Transactions** staging table. The timestamps are converted to UNIX epoch which serves as the PRIMARY KEY of the table, and further segmentations such as day, week, month are derived from it.
+
+### dim_fx_rate
+The `dim_fx_rate` table is created from the JSON the exchange rate API responds with. I use Pandas to convert the JSON response into a table and save it to S3 in CSV format, from there I use the Redshift `COPY` command to load the CSV file into a staging table.
+
+### fact_transaction
+Once the dimension tables are loaded, the associated FOREIGN KEYS are added to the staged **Transaction** data and inserted into the `fact_transaction` table. The country names are matched to join the `dim_country` table and the `dim_fx_rate` table is joined on currency code and file date. 
 
 ## Run ETL to Model the Data
 ![Data Model](images/data_pipeline.png)
-The ETL process has been designed to be modular and self-contained, ie a run on a particular date does not rely on the state of a run on another date. This is to ensure that I can have many ETL operations running in parallel, adding more workers as the size and complexity of my data grows.
+The ETL process has been designed to be modular and self-contained, ie a run on a particular date does not rely on the state of a run on another date. This is to ensure that I can have many ETL operations running in parallel, adding more workers as the size and complexity of my pipeline increases.
 
-Each `run` executes over a single date and is comprised of the following operations:
+Each `run` in the pipeline executes over a single date and is comprised of the following operations:
 
 ### Extract
-1. The ratesapi.io API is called to retrieve the currency exchange rate data for the run date.
-2. The currency exchange rate data is saved to the S3 data lake.
-3. The country, currency and transaction data for the run date is copied from S3 to staging tables in Redshift.
+1. The ratesapi.io API is called to retrieve the **FX Rate** data.
+2. The **FX Rate** data is saved to an S3 bucket.
+3. The **Country**, **FX Rate** and **Transaction** data is copied from S3 to staging tables in Redshift.
 
 ### Ingest
-The staged data is modelled into dimension and fact tables and loaded from the transient staging tables to permanent ones.
+The staged data is transformed into a dimensional model and loaded from the staging tables to permanent ones.
 
 ### Data Checks
-Data quality checks are performed on the dimension and fact tables to ensure records are present. If no records exist in S3 for the date of operation, then the checks are skipped. To enable this, I've used Airflow's `xcom` feature to pass status variables between tasks in the operation.
+Data quality checks are performed on the data model to ensure records are present. If no records exist in S3 for the run date, then the checks are skipped. To enable this, I've used Airflow's `xcom` feature to pass status variables between tasks in the run.
 
 ### Cleanup
-If the data checks pass, the staging tables are dropped and operation terminated.
+If the data checks pass, the staging tables are dropped and the run completes successfully.
 
 
 ## Project Summary
@@ -82,7 +94,7 @@ The goal of this project is to sequentially read date-partitioned transactional 
 
 ### Choice of Technologies
 #### Airflow
-Airflow was chosen because it allows you to create complex, interdependent data pipelines in a concise manner. This software includes pre-build hooks and operators which make working with other cloud-based services easy, additionally, its rich github community provides a wealth of solutions to common problems.
+Airflow was chosen because it allows you to create complex pipelines of interdependent tasks in a concise and modular manner. Airflow includes many pre-built hooks and operators which make working with other cloud-based services straightforward and its rich github community provides a wealth of solutions to common problems.
 
 With the Airflow UI, it is easy to inspect the status of running jobs, or the code which triggered an error in a failed job along with its stack trace. Your data pipelines are represented visually in the Graph View of the UI; this view will update as you make changes to your code, essentially giving you a live view of the structure which is invaluable when composing tasks. 
 
