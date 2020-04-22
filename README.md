@@ -2,7 +2,7 @@
 
 ## Project Scope and Data Gathering
 
-In this project I wanted to simulate a situation I've encountered in the workplace, where daily transactions need to be enriched with data from other sources to enable analysis. To simulate this, I'm going to create a data pipeline which extracts daily transactions data, enriches it with currency exchange information and loads the validated result to a data warehouse.
+In this project I wanted to simulate a situation I've encountered in the workplace, where daily transactions need to be enriched with data from other sources to enable analysis. To simulate this, I'm going to create a data pipeline which extracts daily transactions data, enriches it with currency exchange rates and loads the validated result to a data warehouse.
 
 ### Transaction Table
 - Source: http://archive.ics.uci.edu/ml/datasets/Online+Retail+II
@@ -12,12 +12,12 @@ This is a dataset from the UCI Machine Learning Repository which contains just o
 ### Country Table
 - Source: https://www.currency-iso.org
 
-This is a list of the world's countries and associated ISO currency information. I am going to use this table to lookup the `[alpha_code]` code for each of the records in the **Transaction** table by matching the country names.
+This is a list of the world's countries and associated ISO currency information. I am going to use this table to lookup the `[alpha_code]` (currency code) for each of the records in the **Transaction** table by matching the country names and `[invoice_date]`.
 
 ### FX Rate Table
 - Source: https://ratesapi.io
 
-This free API serves current and historical currency exchange rate data from the European Central Bank. Using the `[invoice_date]` in the **Transaction** table and the `[alpha_code]` gained by cross-checking the `[country]` field, I will enrich the **Transactions** with currency exchange rate data retrieved from this API.
+This free API serves current and historical currency exchange rate data from the European Central Bank. Using the `[invoice_date]` in the **Transaction** table and the `[alpha_code]` gained by cross-checking the `[country]` field, I will enrich the **Transactions** with currency exchange rates from this API.
 
 ## Explore and Assess the Data
 
@@ -28,15 +28,15 @@ To apply the correct exchange rate to a record in the Transactions table, I need
 - Exchange date
 
 #### Base Currency
-From the information provided with the **Transaction** dataset, I know the online retailer only processes orders in GBP currency, so I don't need to worry about deriving a base currency.
+From the information provided with the **Transaction** dataset, I know the online retailer only processes orders in GBP, so I don't need to worry about deriving a base currency.
 
 #### Exchange Currency
-The exchange currency will need to be derived from the `[country]` column which states the country the goods were sold to. The country names present in the **Transaction** table can be mapped to existing ISO country and currency tables found online, by matching the `[country]` names in the **Transaction** with the `[entity]` names in the **COuntry** table, I can retrieve the `[alpha_code]`
+The exchange currency will need to be derived from the `[country]` field which states the country the goods were sold to. The country names present in the **Transaction** table can be mapped to existing ISO country and currency tables found online, by matching the `[country]` names in the **Transaction** table with the `[entity]` names in the **Country** table, I can retrieve the `[alpha_code]`
 
 A minor issue is that all of the country names in the **Country** table `[entity]` column are UPPERCASE, while the ones in the `[country]` field of the **Transaction** table are not. This is easily solved in the SQL statement which loads the transaction records, I'll convert the **Transaction** `[country]` column to UPPERCASE to match the **Country** `[entity]` column when performing the lookup. 
 
 #### Exchange Date
-While the **Transaction** table contains records for almost all dates, I was not aware that exchange rates are not available on weekends. If you call the exchange rate API on a weekend, it will return the rates from the preceding Friday (which are dated as such). To avoid mismatching dates, I have added an additional column `[file_date]` to the **FX Rate** table which contains the date the exchange rate API was called with. With this column in place, I can reliably join the **Transactions** to the **FX Rate** table on `[invoice_date]` = `[file_date]` 
+While the **Transaction** table contains records for almost all dates, I was not aware that exchange rates are not available on weekends. If you call the exchange rate API on a weekend, it will return the rates from the preceding Friday. To avoid mismatching dates, I have added an additional column `[file_date]` to the **FX Rate** table which contains the date the exchange rate API was called with. With this column in place, I can reliably join the **Transaction** table to the **FX Rate** table on `[invoice_date]` = `[file_date]`.
 
 ### Non-null values in "empty" cells
 The transactions table is not entirely clean and there are whitespace and other such non-null values in cells which should be null. I will use the COPY OPTIONS parameter when copying the data from S3 to Redshift; this parameter lets you specify how non-null values will be handled, in this case I will replace them with NULL.
@@ -48,7 +48,7 @@ The exchange rates returned by the FX Rate API are long decimal numbers. To ensu
 ## Step 3: Define the Data Model
 ![Data Model](images/data_model.png)
 
-From an analysis standpoint, this data model has been designed primarily to enable analysis of revenue over time in multiple currencies. In terms of the data pipeline, the model has been designed to be atomic, each `run` in the pipeline processes an isolated slice of data so that many runs can be performed in parallel.
+From an analysis standpoint, this data model has been designed primarily to enable analysis of revenue over time in multiple currencies. In terms of the data pipeline, the model has been designed enable atomic runs, each `run` in the pipeline processes an isolated slice of data so many runs can be executed in parallel.
 
 ### dim_country
 The `dim_country` table is a static mapping table used to lookup the currency for each country, it has been retained as part of the model due to the useful currency information fields it contains. For example, the `[minor_unit]` field can be used to drive calculations and the `[numeric_code]` could be useful to satisfy some reporting requirements.
@@ -64,7 +64,7 @@ Once the dimension tables are loaded, the associated FOREIGN KEYS are added to t
 
 ## Run ETL to Model the Data
 ![Data Model](images/data_pipeline.png)
-The ETL process has been designed to be modular and self-contained, ie a run on a particular date does not rely on the state of a run on another date. This is to ensure that I can have many ETL operations running in parallel, adding more workers as the size and complexity of my pipeline increases.
+The ETL process has been designed to be modular and atomic, a run on a particular date does not rely on the state of a run on another date. This is to ensure that I can have many ETL operations running in parallel, adding more Airflow workers as the size and complexity of the pipeline increases.
 
 Each `run` in the pipeline executes over a single date and is comprised of the following operations:
 
