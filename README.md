@@ -1,5 +1,3 @@
-- # TODO: Scaling scenarios
-
 # Udacity Data Engineering Nanodegree - Capstone Project
 
 ## Project Scope and Data Gathering
@@ -9,9 +7,7 @@ In this project I wanted to simulate a situation I've encountered in the workpla
 ### Transaction Table
 - Source: http://archive.ics.uci.edu/ml/datasets/Online+Retail+II
 
-This is a dataset from the UCI Machine Learning Repository which contains just over a million transactions from an online business. Transaction lines are timestamped and grouped by `[invoice_id]`, each invoice can consist of one or more records containing product information, quantity and price.
-
-The `[country]` field of the **Transaction** table shows the name of the destination country of the invoice, with the help of an additional **Country** mapping table, I will lookup the local currency for each country.
+This is a dataset from the UCI Machine Learning Repository which contains just over a million transactions from an online business. Transaction lines are timestamped and grouped by `[invoice_id]`, each invoice can consist of one or more records containing product information, quantity and price. The `[country]` field of the **Transaction** table shows the name of the destination country of the invoice, with the help of an additional **Country** mapping table, I will lookup the local currency for each country.
 
 ### Country Table
 - Source: https://www.currency-iso.org
@@ -105,14 +101,16 @@ AWS Redshift and S3 were chosen due to the seamless data transfer between them, 
 The transactions data has been partitioned to suit the grain of the currency exchange rate data; a single date. This means that each Airflow job will only deal with data for a specific date and can operate independently, enabling parallel processing. As the data is partitioned to single days, I propose the update frequency matches this.
 
 ### Scaling Scenarios
+How you would approach the problem differently under the following scenarios:
 
-Include a description of how you would approach the problem differently under the following scenarios:
-    If the data was increased by 100x.
-    If the pipelines were run on a daily basis by 7am.
-    If the database needed to be accessed by 100+ people.
+#### If the data was increased by 100x.
+I would increase the number of active runs Airflow processes, as each run is self-contained, multiple runs can execute in parallel. Redshift can be scaled horizontally by adding additional nodes or additional memory to exi
 
-### Example Queries
-What queries will you want to run?
+#### If the pipelines were run on a daily basis by 7am.
+I would add an SLA to the Airflow DAGs in question, monitor how long it takes to process the jobs and make any required adjustments to the pipeline to ensure we consistently satisfy the SLA.
+
+#### If the database needed to be accessed by 100+ people.
+Redshift and S3 can easily handle 100+ users with varying levels of access. Adding many users will undoubtably introduce new use-cases for the data, it is worth revisiting the design of the data model to add additional views and tables specifically designed to serve the most common queries.
 
 
 ## Setup Instructions
@@ -196,10 +194,9 @@ This application also requires an S3 bucket to write data to, these **Variables*
 - **Important!** The ETL process requires a schema named `public` in your Redshift cluster, please check that the schema exists before proceeding.
 - **Important!** Your AWS role must allow read and write access to the S3 bucket you have specified, please check your permissions before proceeding.
 
-Once the **Connections** and **Variables** have been set up, run the `transactions_etl` DAG by toggling the ON switch in the **DAGs** section of the Airflow UI. The ETL operation will proceed sequentially, a day at a time, from `01/12/2009` to `09/12/2011` with a single active run.
+Once the **Connections** and **Variables** have been set up, run the `transactions_etl` DAG by toggling the ON switch in the **DAGs** section of the Airflow UI.
 
-If you would like to process multiple dates in parallel, confirm the first run has completed successfully, then increase the number of active workers in the `etl_transactions.py` DAG. I have successfully tested the process end-to-end on my local machine with 3 active workers.
-
+The ETL operation will proceed sequentially, a day at a time, from `01/12/2009` to `09/12/2011` with a single active run. If you would like to process multiple runs in parallel, confirm the first run has completed successfully, then increase the number of active runs in the `etl_transactions.py` DAG.
 
 ## Example SQL Query
 
