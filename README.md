@@ -104,7 +104,7 @@ The transactions data has been partitioned to suit the grain of the currency exc
 How you would approach the problem differently under the following scenarios:
 
 #### If the data was increased by 100x.
-I would increase the number of active runs Airflow processes, as each run is self-contained, multiple runs can execute in parallel. Redshift can be scaled horizontally by adding additional nodes or additional memory to exi
+I would increase the number of active runs Airflow processes, as each run is self-contained, multiple runs can execute in parallel. Redshift can be scaled horizontally by adding additional nodes or additional memory to existing nodes.
 
 #### If the pipelines were run on a daily basis by 7am.
 I would add an SLA to the Airflow DAGs in question, monitor how long it takes to process the jobs and make any required adjustments to the pipeline to ensure we consistently satisfy the SLA.
