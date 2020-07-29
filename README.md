@@ -202,8 +202,8 @@ If you would like to process multiple runs in parallel, increase the number of a
 ### Multi-Currency Transaction Report
 ```sql
 SELECT t.id                                       AS transaction_id,
-	     d.date_time :: DATE                        AS invoice_date,
-	     t.stock_code                               AS stock_code,
+       d.date_time :: DATE                        AS invoice_date,
+       t.stock_code                               AS stock_code,
        t.description                              AS description,
        'GBP'                                      AS base_currency,
        f.exchange                                 AS local_currency,
