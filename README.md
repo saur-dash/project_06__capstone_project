@@ -116,7 +116,7 @@ Redshift and S3 can easily handle 100+ users with varying levels of access. Addi
 ## Setup Instructions
 
 ### First Time Setup
-This guide assumes that you have Python 3.7 and Airflow installed on a Linux operatoring system. When running this application for the first time, clone this github repo by running:
+This guide assumes that you have Python 3.7 and Airflow installed on a Linux operating system. When running this application for the first time, clone this github repo by running:
 
 ```bash
 # clone github repo
